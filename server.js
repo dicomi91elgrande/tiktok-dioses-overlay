@@ -103,6 +103,22 @@ function registerEvent(viewer, meta = {}) {
   return viewer;
 }
 
+function characterNameFromFile(fileName) {
+  return path.basename(fileName, path.extname(fileName));
+}
+
+function listCharacters() {
+  const charactersDir = path.join(publicDir, "character-images");
+  const allowed = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+  return fs.readdirSync(charactersDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && allowed.has(path.extname(entry.name).toLowerCase()))
+    .map((entry) => ({
+      name: characterNameFromFile(entry.name),
+      image: `character-images/${encodeURIComponent(entry.name)}`
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
 function proxyImage(imageUrl, res) {
   if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
     sendJson(res, 400, { ok: false, error: "URL invalida" });
@@ -177,6 +193,15 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/api/avatar") {
     proxyImage(url.searchParams.get("url") || "", res);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/characters") {
+    try {
+      sendJson(res, 200, listCharacters());
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: "No se pudo leer la lista de personajes" });
+    }
     return;
   }
 
