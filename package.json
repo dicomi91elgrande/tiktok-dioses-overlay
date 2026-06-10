@@ -1,0 +1,13 @@
+{
+  "name": "tiktok-dioses-overlay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Overlay web para asignar dioses a seguidores de TikTok Live via Interactive.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
