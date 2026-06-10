@@ -4,38 +4,15 @@ const W = canvas.width;
 const H = canvas.height;
 const TAU = Math.PI * 2;
 
+const localBaseUrl = "http://localhost:3041";
+const apiBaseUrl = location.protocol === "file:" ? localBaseUrl : "";
+
 if (new URLSearchParams(location.search).get("bg") === "green") {
   document.documentElement.classList.add("green-bg");
 }
 
-const gods = [
-  { name: "Zeus", image: "deity-images/ZEUS.png" },
-  { name: "Hera", image: "deity-images/HERA.png" },
-  { name: "Poseidon", image: "deity-images/POSEIDON.png" },
-  { name: "Atenea", image: "deity-images/ATENEA.png" },
-  { name: "Apolo", image: "deity-images/APOLO.png" },
-  { name: "Artemisa", image: "deity-images/ARTEMISA.png" },
-  { name: "Ares", image: "deity-images/ARES.png" },
-  { name: "Afrodita", image: "deity-images/AFRODITA.png" },
-  { name: "Hermes", image: "deity-images/HERMES.png" },
-  { name: "Hades", image: "deity-images/HADES.png" },
-  { name: "Dioniso", image: "deity-images/DIONISIO.png" },
-  { name: "Demeter", image: "deity-images/DEMETER.png" },
-  { name: "Hefesto", image: "deity-images/EFESO.png" },
-  { name: "Persefone", image: "deity-images/PERSEFONE.png" },
-  { name: "Hercules", image: "deity-images/HERCULES.png" },
-  { name: "Aquiles", image: "deity-images/AQUILES.png" },
-  { name: "Odiseo", image: "deity-images/ODISEO.png" },
-  { name: "Perseo", image: "deity-images/PERSEO.png" },
-  { name: "Teseo", image: "deity-images/TESEO.png" },
-  { name: "Orfeo", image: "deity-images/ORFEO.png" },
-  { name: "Medusa", image: "deity-images/MEDUSA.png" },
-  { name: "Pegaso", image: "deity-images/PEGASO.png" },
-  { name: "Minotauro", image: "deity-images/minotauro.jpg" },
-  { name: "Anubis", image: "deity-images/anubis.jpg" }
-];
-
 const imageCache = new Map();
+let characters = [];
 let seenId = 0;
 let queue = [];
 let currentToast = null;
@@ -49,22 +26,33 @@ function loadImage(src) {
   return img;
 }
 
-gods.forEach((god) => loadImage(god.image));
+function loadCharacters() {
+  fetch(`${apiBaseUrl}/api/characters`, { cache: "no-store" })
+    .then((response) => response.ok ? response.json() : [])
+    .then((data) => {
+      if (!Array.isArray(data) || data.length === 0) return;
+      characters = data.filter((character) => character.name && character.image);
+      characters.slice(0, 24).forEach((character) => loadImage(character.image));
+    })
+    .catch(() => {});
+}
 
-function pickGod() {
-  return gods[Math.floor(Math.random() * gods.length)];
+function pickCharacter() {
+  if (characters.length === 0) {
+    return { name: "Goku", image: "character-images/Goku.jpg" };
+  }
+  return characters[Math.floor(Math.random() * characters.length)];
 }
 
 function avatarUrl(url) {
   if (!url) return "";
-  if (location.protocol === "file:") return `http://localhost:3041/api/avatar?url=${encodeURIComponent(url)}`;
-  return `/api/avatar?url=${encodeURIComponent(url)}`;
+  return `${apiBaseUrl}/api/avatar?url=${encodeURIComponent(url)}`;
 }
 
 function pollEvents(now) {
-  if (now - lastPoll < 420) return;
+  if (now - lastPoll < 1000) return;
   lastPoll = now;
-  const url = location.protocol === "file:" ? "http://localhost:3041/api/events" : "/api/events";
+  const url = `${apiBaseUrl}/api/events`;
   fetch(url, { cache: "no-store" })
     .then((response) => response.ok ? response.json() : [])
     .then((events) => {
@@ -82,15 +70,15 @@ function pollEvents(now) {
 function startNextToast(now) {
   const event = queue.shift();
   if (!event) return;
-  const god = pickGod();
+  const character = pickCharacter();
   const avatar = loadImage(avatarUrl(event.avatar));
   currentToast = {
     start: now,
     duration: 4800,
     name: String(event.name || event.username || "Nuevo seguidor").trim(),
     avatar,
-    god,
-    godImage: loadImage(god.image)
+    character,
+    characterImage: loadImage(character.image)
   };
 }
 
@@ -188,10 +176,10 @@ function drawToast(now) {
   ctx.stroke();
 
   drawCircularImage(currentToast.avatar, x + 67, y + h / 2, 42, "#82d6ff");
-  drawCircularImage(currentToast.godImage, x + w - 67, y + h / 2, 43, "#ffd055");
+  drawCircularImage(currentToast.characterImage, x + w - 67, y + h / 2, 43, "#ffd055");
 
   const name = currentToast.name.toUpperCase();
-  const godName = currentToast.god.name.toUpperCase();
+  const characterName = currentToast.character.name.toUpperCase();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
@@ -205,14 +193,14 @@ function drawToast(now) {
 
   ctx.font = "900 18px Inter, Arial, sans-serif";
   ctx.fillStyle = "#26304c";
-  ctx.strokeText("TE ASIGNO A", x + w / 2, y + 66);
-  ctx.fillText("TE ASIGNO A", x + w / 2, y + 66);
+  ctx.strokeText("TU PERSONAJE ES", x + w / 2, y + 66);
+  ctx.fillText("TU PERSONAJE ES", x + w / 2, y + 66);
 
-  const size = fitText(godName, 210, 27, 18);
+  const size = fitText(characterName, 230, 27, 15);
   ctx.font = `900 ${size}px Inter, Arial, sans-serif`;
   ctx.fillStyle = "#ff642f";
-  ctx.strokeText(godName, x + w / 2, y + 101);
-  ctx.fillText(godName, x + w / 2, y + 101);
+  ctx.strokeText(characterName, x + w / 2, y + 101);
+  ctx.fillText(characterName, x + w / 2, y + 101);
 
   ctx.globalCompositeOperation = "lighter";
   for (let i = 0; i < 8; i++) {
@@ -235,4 +223,5 @@ function draw(now) {
   requestAnimationFrame(draw);
 }
 
+loadCharacters();
 requestAnimationFrame(draw);
